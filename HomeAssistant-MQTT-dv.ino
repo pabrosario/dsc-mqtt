@@ -216,12 +216,8 @@ Preferences preferences;
 // Preset
 const char* custom_MQTT = "";
 const char* custom_DSC_PIN = "";
-//const char* custom_mqttUsername = "";
-//const char* custom_mqttPassword = "";
 String custom_MQTT_r;
 String custom_DSC_PIN_r;
-//String custom_mqttUsername_r;
-//String custom_mqttPassword_r;
 bool shouldSaveConfig = false;
 
 // Wifi Control
@@ -305,16 +301,14 @@ void setup() {
   wm.setSaveConfigCallback(saveConfigCallback);
 
   // Define a text box, 50 characters maximum
-  WiFiManagerParameter custom_DSC_PIN("dsc_pin", "Pin", "2671", 4);
-  WiFiManagerParameter custom_MQTT("server_mqtt", "Server MQTT", "192.168.1.194", 15);
-//  WiFiManagerParameter custom_mqttUsername("user_mqtt", "User MQTT", "user", 15);
-//  WiFiManagerParameter custom_mqttPassword("user_passwd", "User Password", "pass", 15);
+  WiFiManagerParameter custom_DSC_PIN("dsc_pin", "Pin", "5555", 4);
+  WiFiManagerParameter custom_MQTT("server_mqtt", "Server MQTT", "192.168.1.xxx", 15);
+
 
     // Add custom parameter
   wm.addParameter(&custom_DSC_PIN);
   wm.addParameter(&custom_MQTT);
-//  wm.addParameter(&custom_mqttUsername);
-//  wm.addParameter(&custom_mqttPassword);
+
 
    //Try to connect WiFi, then create AP
   wm.autoConnect("DSC_AP", "12345678");
@@ -327,8 +321,6 @@ if (shouldSaveConfig) {
     preferences.begin("credentials", false);
     preferences.putString("custom_DSC_PIN", custom_DSC_PIN.getValue());
     preferences.putString("custom_MQTT", custom_MQTT.getValue()); 
-//    preferences.putString("custom_mqttUsername", custom_mqttUsername.getValue());
-//    preferences.putString("custom_mqttPassword", custom_mqttPassword.getValue());    
     preferences.end();
   }
 
@@ -337,21 +329,15 @@ if (shouldSaveConfig) {
   preferences.begin("credentials", false);
   custom_DSC_PIN_r = preferences.getString("custom_DSC_PIN", "");
   custom_MQTT_r = preferences.getString("custom_MQTT", ""); 
-//  custom_mqttUsername_r = preferences.getString("custom_mqttUsername", "");
-//  custom_mqttPassword_r = preferences.getString("custom_mqttPassword", ""); 
   preferences.end();
 
   Serial.print("Datos de Configuracion: \n");
   Serial.printf("Pin: %s \n", custom_DSC_PIN_r);
   Serial.printf("IP MQTT: %s \n", custom_MQTT_r );
-//  Serial.printf("User MQTT: %s \n", custom_mqttUsername_r);
-//  Serial.printf("Password MQTT: %s \n", custom_mqttPassword_r );
 
   // Asignacion de variables
   accessCode = custom_DSC_PIN_r.c_str();
   mqttServer = custom_MQTT_r.c_str();
-//  mqttUsername = custom_mqttUsername_r.c_str();
-//  mqttPassword = custom_mqttPassword_r.c_str();
 
   mqtt.setCallback(mqttCallback);
   if (mqttConnect()) mqttPreviousTime = millis();
@@ -376,6 +362,7 @@ void loop() {
     WiFi_previousMillis = WiFi_currentMillis;
   }
 
+
     RESET = digitalRead(PIN_RESET_BUTTON);
     if( RESET == HIGH) {                                 
       Serial.println("Erase settings and restart ...");
@@ -383,6 +370,7 @@ void loop() {
       wm.resetSettings();  
       ESP.restart();  
     }
+    
     
   
   mqttHandle();
