@@ -207,16 +207,41 @@ entity: alarm_control_panel.security_partition_1
 #include <WiFi.h>
 #include <PubSubClient.h>
 #include <dscKeybusInterface.h>
-#include <WiFiManager.h> 
+#include <WiFiManager.h>
+#include <Preferences.h>
+#include <iostream>
+
+Preferences preferences;
+
+// Preset
+const char* custom_MQTT = "";
+const char* custom_DSC_PIN = "";
+//const char* custom_mqttUsername = "";
+//const char* custom_mqttPassword = "";
+String custom_MQTT_r;
+String custom_DSC_PIN_r;
+//String custom_mqttUsername_r;
+//String custom_mqttPassword_r;
+bool shouldSaveConfig = false;
+
+// Wifi Control
+unsigned long WiFi_previousMillis = 0;
+unsigned long WiFi_interval_check = 60000;
+
+//callback notifying us of the need to save config
+void saveConfigCallback () {
+  Serial.println("Should save config");
+  shouldSaveConfig = true;
+}
 
 // Settings
 const char* wifiSSID = SECRET_SSID;
 const char* wifiPassword = SECRET_PASS;
 const char* accessCode = SECRET_ACCESS_CODE;    // An access code is required to disarm/night arm and may be required to arm or enable command outputs based on panel configuration.
 const char* mqttServer = SECRET_IP_MQTT;    // MQTT server domain name or IP address
-const int   mqttPort = 1883;    // MQTT server port
-const char* mqttUsername = "";  // Optional, leave blank if not required
-const char* mqttPassword = "";  // Optional, leave blank if not required
+const int   mqttPort = SECRET_mqttPort;    // MQTT server port
+const char* mqttUsername = SECRET_mqttUsername;  // Optional, leave blank if not required
+const char* mqttPassword = SECRET_mqttPassword;  // Optional, leave blank if not required
 
 // MQTT topics - match to Home Assistant's configuration.yaml
 const char* mqttClientName = "dscKeybusInterface";
@@ -248,8 +273,7 @@ WiFiClient ipClient;
 PubSubClient mqtt(mqttServer, mqttPort, ipClient);
 unsigned long mqttPreviousTime;
 
-unsigned long previousMillis = 0;
-unsigned long interval = 30000;
+
 
 //WebServer server(80);
 WiFiManager wm;
@@ -262,8 +286,8 @@ void setup() {
   delay(1000);
   Serial.println();
   Serial.println();
-
-/*  Serial.print(F("WiFi...."));
+/*
+  Serial.print(F("WiFi...."));
   WiFi.mode(WIFI_STA);
   WiFi.begin(wifiSSID, wifiPassword);
   while (WiFi.status() != WL_CONNECTED) {
@@ -273,11 +297,61 @@ void setup() {
   Serial.print(F("connected: "));
   Serial.println(WiFi.localIP());
 */
+  // Timeout de espera del portal
+  wm.setConfigPortalTimeout(300);
+
+
+  //set config save notify callback
+  wm.setSaveConfigCallback(saveConfigCallback);
+
+  // Define a text box, 50 characters maximum
+  WiFiManagerParameter custom_DSC_PIN("dsc_pin", "Pin", "2671", 4);
+  WiFiManagerParameter custom_MQTT("server_mqtt", "Server MQTT", "192.168.1.194", 15);
+//  WiFiManagerParameter custom_mqttUsername("user_mqtt", "User MQTT", "user", 15);
+//  WiFiManagerParameter custom_mqttPassword("user_passwd", "User Password", "pass", 15);
+
+    // Add custom parameter
+  wm.addParameter(&custom_DSC_PIN);
+  wm.addParameter(&custom_MQTT);
+//  wm.addParameter(&custom_mqttUsername);
+//  wm.addParameter(&custom_mqttPassword);
 
    //Try to connect WiFi, then create AP
-    wm.autoConnect("DSC_AP", "12345678");
+  wm.autoConnect("DSC_AP", "12345678");
     //Idem avec nom automatique de la forme ESP + ChipID et sans mot de passe
     //wifiManager.autoConnect();
+
+
+if (shouldSaveConfig) {
+    Serial.println("saving config");
+    preferences.begin("credentials", false);
+    preferences.putString("custom_DSC_PIN", custom_DSC_PIN.getValue());
+    preferences.putString("custom_MQTT", custom_MQTT.getValue()); 
+//    preferences.putString("custom_mqttUsername", custom_mqttUsername.getValue());
+//    preferences.putString("custom_mqttPassword", custom_mqttPassword.getValue());    
+    preferences.end();
+  }
+
+
+  // Read Variables
+  preferences.begin("credentials", false);
+  custom_DSC_PIN_r = preferences.getString("custom_DSC_PIN", "");
+  custom_MQTT_r = preferences.getString("custom_MQTT", ""); 
+//  custom_mqttUsername_r = preferences.getString("custom_mqttUsername", "");
+//  custom_mqttPassword_r = preferences.getString("custom_mqttPassword", ""); 
+  preferences.end();
+
+  Serial.print("Datos de Configuracion: \n");
+  Serial.printf("Pin: %s \n", custom_DSC_PIN_r);
+  Serial.printf("IP MQTT: %s \n", custom_MQTT_r );
+//  Serial.printf("User MQTT: %s \n", custom_mqttUsername_r);
+//  Serial.printf("Password MQTT: %s \n", custom_mqttPassword_r );
+
+  // Asignacion de variables
+  accessCode = custom_DSC_PIN_r.c_str();
+  mqttServer = custom_MQTT_r.c_str();
+//  mqttUsername = custom_mqttUsername_r.c_str();
+//  mqttPassword = custom_mqttPassword_r.c_str();
 
   mqtt.setCallback(mqttCallback);
   if (mqttConnect()) mqttPreviousTime = millis();
@@ -292,24 +366,24 @@ void setup() {
 
 void loop() {
 
-  unsigned long currentMillis = millis();
+  unsigned long WiFi_currentMillis = millis();
   // if WiFi is down, try reconnecting
-  if ((WiFi.status() != WL_CONNECTED) && (currentMillis - previousMillis >=interval)) {
+  if ((WiFi.status() != WL_CONNECTED) && (WiFi_currentMillis - WiFi_previousMillis >= WiFi_interval_check )) {
     Serial.print(millis());
     Serial.println("Reconnecting to WiFi...");
     WiFi.disconnect();
     WiFi.reconnect();
-    previousMillis = currentMillis;
+    WiFi_previousMillis = WiFi_currentMillis;
   }
 
-/*    RESET = digitalRead(PIN_RESET_BUTTON);
+    RESET = digitalRead(PIN_RESET_BUTTON);
     if( RESET == HIGH) {                                 
       Serial.println("Erase settings and restart ...");
       delay(1000);
       wm.resetSettings();  
       ESP.restart();  
     }
-*/    
+    
   
   mqttHandle();
 
