@@ -2,5 +2,6 @@
 
 forked from taligentx/dscKeybusInterface
 
-Add feature Portal Cautivo Wifi, Server MQTT y PIN DSC
-Add feature reconect Wifi
+Add Wifi Captive Portal functionality with input for MQTT Server and DSC PIN
+
+Add Wifi reconnect function
